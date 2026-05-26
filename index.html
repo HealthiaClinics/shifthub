@@ -258,6 +258,20 @@ alter table shifts enable row level security;</textarea>
 
 <div class="toast-container" id="toast-container"></div>
 
+<!-- CLAIM PAGE -->
+<div id="claim-page" style="display:none;min-height:100vh;background:#F7F6F3;align-items:center;justify-content:center;padding:24px">
+  <div style="background:#fff;border:1px solid #E2DED8;border-radius:14px;box-shadow:0 4px 12px rgba(0,0,0,0.10);padding:40px;max-width:460px;width:100%;text-align:center;margin:auto">
+    <div style="font-size:22px;font-weight:600;color:#085048;margin-bottom:20px">Shift<span style="color:#1D9E8A">Hub</span></div>
+    <div id="claim-icon" style="width:64px;height:64px;background:#E0F5F2;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 20px">
+      <svg width="32" height="32" fill="none" viewBox="0 0 24 24" stroke="#0F7B6C" stroke-width="1.7"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/><path d="M9 16l2 2 4-4"/></svg>
+    </div>
+    <h2 id="claim-heading" style="font-size:20px;font-weight:600;margin-bottom:8px">Loading…</h2>
+    <p id="claim-sub" style="font-size:14px;color:#6B6860;margin-bottom:20px;line-height:1.6"></p>
+    <div id="claim-details" style="margin-bottom:20px"></div>
+    <div id="claim-actions"></div>
+  </div>
+</div>
+
 <script>
 // ── GLOBALS ──
 const COLORS = ['#0F7B6C','#185FA5','#BA7517','#993C1D','#7B3FA0','#2563EB','#0E7490','#065F46'];
@@ -295,17 +309,99 @@ function doSaveConfig() {
 // ── INIT ──
 async function init() {
   CFG = getConfig();
-  if (!CFG) { document.getElementById('setup-screen').style.display = 'flex'; return; }
-  try {
-    DB = window.supabase.createClient(CFG.url, CFG.key);
-    if (CFG.ejPub) emailjs.init(CFG.ejPub);
-  } catch(e) {
-    alert('Could not connect. Please check your Supabase credentials.\n\n' + e.message);
-    document.getElementById('setup-screen').style.display = 'flex';
+  const params = new URLSearchParams(window.location.search);
+  const token = params.get('accept');
+  const empId = params.get('emp');
+
+  // Always need DB for claim page too
+  if (CFG) {
+    try {
+      DB = window.supabase.createClient(CFG.url, CFG.key);
+      if (CFG.ejPub) emailjs.init(CFG.ejPub);
+    } catch(e) { console.warn('DB init failed', e); }
+  }
+
+  // If claim link
+  if (token) {
+    document.getElementById('claim-page').style.display = 'flex';
+    if (!DB) {
+      document.getElementById('claim-heading').textContent = 'Setup required';
+      document.getElementById('claim-sub').textContent = 'ShiftHub is not configured on this device. Please contact your administrator.';
+      return;
+    }
+    await loadClaimPage(token, empId);
     return;
   }
+
+  if (!CFG) { document.getElementById('setup-screen').style.display = 'flex'; return; }
   document.getElementById('app').style.display = 'flex';
   navigate('dashboard');
+}
+
+async function loadClaimPage(token, empId) {
+  showLoading('Loading shift details…');
+  try {
+    const {data:shift, error} = await DB.from('shifts').select('*').eq('token', token).single();
+    if (error || !shift) { claimError('This shift link is invalid or has expired.'); return; }
+    if (shift.status === 'filled') { claimError('This shift has already been claimed by someone else.'); return; }
+
+    const {data:clinic} = await DB.from('clinics').select('*').eq('id', shift.clinic_id).single();
+    let emp = null;
+    if (empId) { const r = await DB.from('employees').select('*').eq('id', empId).single(); emp = r.data; }
+
+    const cname = clinic ? clinic.name : 'your clinic';
+    document.getElementById('claim-heading').textContent = 'Shift available!';
+    document.getElementById('claim-sub').textContent = (emp ? 'Hi ' + emp.first_name + '! ' : '') + 'A shift needs covering at ' + cname + '. Would you like to take it?';
+    document.getElementById('claim-details').innerHTML =
+      '<div style="background:#E0F5F2;border-radius:10px;padding:16px;text-align:left;font-size:14px;line-height:2">' +
+      '<div>🏥 <strong>' + cname + '</strong></div>' +
+      '<div>📅 <strong>' + fmtDate(shift.date) + '</strong></div>' +
+      '<div>⏰ <strong>' + fmtTime(shift.start_time) + ' – ' + fmtTime(shift.end_time) + '</strong></div>' +
+      (shift.notes ? '<div>📝 ' + shift.notes + '</div>' : '') +
+      '</div>';
+    document.getElementById('claim-actions').innerHTML =
+      '<button onclick="doAcceptShift(this)" data-shift="'+shift.id+'" data-token="'+token+'" data-emp="'+empId+'" style="display:block;width:100%;background:#0F7B6C;color:#fff;border:none;padding:14px;border-radius:10px;font-size:16px;font-weight:600;cursor:pointer;margin-bottom:10px;font-family:inherit">✅ Yes, I will take this shift</button>' +
+      '<button onclick="doDeclineShift()" style="display:block;width:100%;background:#F1EFEA;color:#6B6860;border:1px solid #E2DED8;padding:12px;border-radius:10px;font-size:14px;cursor:pointer;font-family:inherit">No thanks, skip this one</button>';
+  } catch(e) {
+    claimError('Could not load shift details. Please try again.');
+    console.error(e);
+  }
+  hideLoading();
+}
+
+function claimError(msg) {
+  hideLoading();
+  document.getElementById('claim-icon').style.background = '#FDECEA';
+  document.getElementById('claim-icon').innerHTML = '<svg width="32" height="32" fill="none" viewBox="0 0 24 24" stroke="#C0392B" stroke-width="1.7"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>';
+  document.getElementById('claim-heading').textContent = 'Shift unavailable';
+  document.getElementById('claim-sub').textContent = msg;
+  document.getElementById('claim-actions').innerHTML = '<a href="https://cormaister.github.io/shifthub" style="display:inline-block;background:#F1EFEA;color:#1C1C1A;border:1px solid #E2DED8;padding:10px 24px;border-radius:10px;text-decoration:none;font-size:14px">Go to ShiftHub</a>';
+}
+
+async function doAcceptShift(btn) { const shiftId=btn.dataset.shift, token=btn.dataset.token, empId=btn.dataset.emp;
+  showLoading('Claiming shift…');
+  try {
+    const update = { status: 'filled' };
+    if (empId && empId !== 'null') update.claimed_by = empId;
+    const {error} = await DB.from('shifts').update(update).eq('id', shiftId).eq('status', 'open');
+    if (error) throw error;
+    hideLoading();
+    document.getElementById('claim-icon').innerHTML = '<svg width="32" height="32" fill="none" viewBox="0 0 24 24" stroke="#0F7B6C" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>';
+    document.getElementById('claim-heading').textContent = 'Shift accepted! 🎉';
+    document.getElementById('claim-sub').textContent = 'You are confirmed for this shift. It has been updated in ShiftHub.';
+    document.getElementById('claim-details').innerHTML = '';
+    document.getElementById('claim-actions').innerHTML = '<a href="https://cormaister.github.io/shifthub" style="display:inline-block;background:#0F7B6C;color:#fff;padding:12px 28px;border-radius:10px;text-decoration:none;font-size:14px;font-weight:600">View in ShiftHub</a>';
+  } catch(e) {
+    hideLoading();
+    claimError('Something went wrong — the shift may have already been claimed.');
+  }
+}
+
+function doDeclineShift() {
+  document.getElementById('claim-heading').textContent = 'No worries!';
+  document.getElementById('claim-sub').textContent = 'The shift is still open for others to claim.';
+  document.getElementById('claim-details').innerHTML = '';
+  document.getElementById('claim-actions').innerHTML = '<a href="https://cormaister.github.io/shifthub" style="display:inline-block;background:#F1EFEA;color:#1C1C1A;border:1px solid #E2DED8;padding:10px 24px;border-radius:10px;text-decoration:none;font-size:14px">Go to ShiftHub</a>';
 }
 
 // ── UI HELPERS ──
