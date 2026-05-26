@@ -1,0 +1,847 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ShiftHub — Clinic Group</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+<style>
+:root{--teal:#0F7B6C;--teal-light:#E0F5F2;--teal-dark:#085048;--bg:#F7F6F3;--surface:#fff;--surface2:#F1EFEA;--border:#E2DED8;--text:#1C1C1A;--text2:#6B6860;--text3:#9E9B96;--danger:#C0392B;--danger-light:#FDECEA;--radius:10px;--radius-lg:14px;--shadow:0 1px 3px rgba(0,0,0,0.07);--shadow-md:0 4px 12px rgba(0,0,0,0.10)}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:15px}
+.app{display:flex;min-height:100vh}
+.sidebar{width:224px;background:var(--teal-dark);flex-shrink:0;display:flex;flex-direction:column;position:fixed;top:0;left:0;bottom:0;z-index:50}
+.sidebar-logo{padding:24px 20px 20px;border-bottom:1px solid rgba(255,255,255,0.1)}
+.sidebar-logo h1{font-size:20px;font-weight:600;color:#fff}
+.sidebar-logo h1 span{color:#5CE8D5}
+.sidebar-logo p{font-size:11px;color:rgba(255,255,255,0.4);margin-top:2px;text-transform:uppercase;letter-spacing:0.5px}
+.nav{padding:16px 12px;flex:1}
+.nav-section{font-size:10px;font-weight:500;color:rgba(255,255,255,0.35);letter-spacing:1px;text-transform:uppercase;padding:0 8px;margin:16px 0 6px}
+.nav-item{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:8px;cursor:pointer;color:rgba(255,255,255,0.65);font-size:14px;transition:all 0.15s;margin-bottom:2px;border:none;background:none;width:100%;text-align:left;font-family:'DM Sans',sans-serif}
+.nav-item:hover{background:rgba(255,255,255,0.08);color:#fff}
+.nav-item.active{background:rgba(255,255,255,0.14);color:#fff;font-weight:500}
+.nav-item svg{width:18px;height:18px;flex-shrink:0}
+.sidebar-bottom{padding:16px 12px;border-top:1px solid rgba(255,255,255,0.1)}
+.main{margin-left:224px;flex:1;padding:32px 36px}
+.topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:28px;gap:16px;flex-wrap:wrap}
+.page-title{font-size:22px;font-weight:600;letter-spacing:-0.3px}
+.page-sub{font-size:13px;color:var(--text2);margin-top:2px}
+.btn{display:inline-flex;align-items:center;gap:7px;padding:9px 18px;border-radius:var(--radius);font-size:14px;font-weight:500;cursor:pointer;border:none;font-family:'DM Sans',sans-serif;transition:all 0.15s}
+.btn-primary{background:var(--teal);color:#fff}.btn-primary:hover{background:var(--teal-dark)}
+.btn-secondary{background:var(--surface);color:var(--text);border:1px solid var(--border);box-shadow:var(--shadow)}.btn-secondary:hover{background:var(--surface2)}
+.btn-danger{background:var(--danger-light);color:var(--danger)}.btn-danger:hover{background:#fad5d3}
+.btn svg{width:16px;height:16px}
+.btn-sm{padding:6px 12px;font-size:13px}
+.stats-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px;margin-bottom:28px}
+.stat-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:18px 20px;box-shadow:var(--shadow)}
+.stat-label{font-size:12px;color:var(--text2);font-weight:500}
+.stat-val{font-size:28px;font-weight:600;margin-top:4px;line-height:1}
+.stat-sub{font-size:12px;color:var(--text3);margin-top:4px}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);box-shadow:var(--shadow);overflow:hidden}
+.card-header{display:flex;align-items:center;justify-content:space-between;padding:18px 22px;border-bottom:1px solid var(--border);flex-wrap:wrap;gap:10px}
+.card-title{font-size:15px;font-weight:600}
+.filter-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;align-items:center}
+.filter-label{font-size:12px;color:var(--text2);font-weight:500;margin-right:4px}
+.chip{padding:5px 13px;border-radius:20px;border:1px solid var(--border);background:var(--surface);font-size:13px;color:var(--text2);cursor:pointer;font-family:'DM Sans',sans-serif;transition:all 0.12s}
+.chip:hover{border-color:var(--teal);color:var(--teal)}
+.chip.active{background:var(--teal-light);border-color:var(--teal);color:var(--teal);font-weight:500}
+.shift-grid{display:flex;flex-direction:column;gap:10px}
+.shift-row{display:flex;align-items:center;gap:14px;padding:14px 18px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);flex-wrap:wrap}
+.shift-row.filled{opacity:0.65}
+.clinic-pill{display:flex;align-items:center;gap:6px;padding:4px 10px;border-radius:6px;font-size:12px;font-weight:500;flex-shrink:0;white-space:nowrap}
+.clinic-dot{width:8px;height:8px;border-radius:50%}
+.shift-details{flex:1;min-width:180px}
+.shift-name{font-size:14px;font-weight:500}
+.shift-meta{display:flex;align-items:center;gap:14px;margin-top:3px;flex-wrap:wrap}
+.shift-meta span{font-size:12px;color:var(--text2)}
+.badge{display:inline-flex;align-items:center;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:500}
+.badge-open{background:var(--teal-light);color:var(--teal-dark)}
+.badge-filled{background:var(--surface2);color:var(--text2)}
+.claimant-tag{font-size:12px;color:var(--text2);display:flex;align-items:center;gap:6px;white-space:nowrap}
+.people-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px}
+.person-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:18px;box-shadow:var(--shadow);display:flex;flex-direction:column;gap:10px}
+.person-top{display:flex;align-items:center;gap:12px}
+.avatar{width:42px;height:42px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:600;flex-shrink:0}
+.person-name{font-size:14px;font-weight:600}
+.person-role{font-size:12px;color:var(--text2);margin-top:1px}
+.person-clinic-tag{font-size:12px;color:var(--text3)}
+.person-actions{display:flex;gap:6px;margin-top:4px}
+.clinic-list{display:flex;flex-direction:column;gap:12px}
+.clinic-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:18px 20px;box-shadow:var(--shadow);display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.clinic-color-bar{width:5px;border-radius:4px;align-self:stretch;min-height:54px;flex-shrink:0}
+.clinic-info{flex:1;min-width:160px}
+.clinic-name{font-size:15px;font-weight:600}
+.clinic-detail{font-size:12px;color:var(--text2);margin-top:2px}
+.clinic-stats{display:flex;gap:24px}
+.clinic-stat-val{font-size:20px;font-weight:600}
+.clinic-stat-label{font-size:11px;color:var(--text3);margin-top:1px}
+.clinic-actions{display:flex;gap:6px}
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.4);display:flex;align-items:center;justify-content:center;z-index:200;padding:20px;opacity:0;transition:opacity 0.2s;pointer-events:none}
+.modal-overlay.open{opacity:1;pointer-events:all}
+.modal{background:var(--surface);border-radius:var(--radius-lg);box-shadow:var(--shadow-md);width:100%;max-width:500px;max-height:90vh;overflow-y:auto;transform:translateY(8px);transition:transform 0.2s}
+.modal-overlay.open .modal{transform:translateY(0)}
+.modal-header{display:flex;align-items:center;justify-content:space-between;padding:20px 24px;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--surface);z-index:2}
+.modal-header h2{font-size:16px;font-weight:600}
+.modal-close{background:none;border:none;cursor:pointer;color:var(--text2);padding:4px;border-radius:6px}
+.modal-body{padding:22px 24px}
+.modal-footer{display:flex;justify-content:flex-end;gap:8px;padding:16px 24px;border-top:1px solid var(--border)}
+.field{margin-bottom:16px}
+.field label{display:block;font-size:13px;font-weight:500;color:var(--text2);margin-bottom:6px}
+.field input,.field select,.field textarea{width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:var(--radius);font-size:14px;font-family:'DM Sans',sans-serif;color:var(--text);background:var(--surface);outline:none;transition:border-color 0.15s,box-shadow 0.15s}
+.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--teal);box-shadow:0 0 0 3px rgba(15,123,108,0.1)}
+.field textarea{resize:vertical;min-height:70px}
+.field-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.field-hint{font-size:11px;color:var(--text3);margin-top:4px}
+.color-picker{display:flex;gap:8px;flex-wrap:wrap}
+.color-swatch{width:28px;height:28px;border-radius:50%;cursor:pointer;border:3px solid transparent;transition:transform 0.1s}
+.color-swatch:hover{transform:scale(1.15)}
+.color-swatch.selected{border-color:var(--text);transform:scale(1.1)}
+.staff-select-list{display:flex;flex-direction:column;gap:6px;max-height:240px;overflow-y:auto}
+.staff-option{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:var(--radius);border:1px solid var(--border);cursor:pointer;transition:all 0.12s}
+.staff-option:hover,.staff-option.selected{border-color:var(--teal);background:var(--teal-light)}
+.confirm-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.35);display:flex;align-items:center;justify-content:center;z-index:300;padding:20px;opacity:0;transition:opacity 0.15s;pointer-events:none}
+.confirm-overlay.open{opacity:1;pointer-events:all}
+.confirm-box{background:var(--surface);border-radius:var(--radius-lg);box-shadow:var(--shadow-md);padding:24px;max-width:360px;width:100%}
+.confirm-box h3{font-size:15px;font-weight:600;margin-bottom:8px}
+.confirm-box p{font-size:13px;color:var(--text2);margin-bottom:18px;line-height:1.6}
+.confirm-actions{display:flex;gap:8px;justify-content:flex-end}
+.toast-container{position:fixed;bottom:24px;right:24px;z-index:500;display:flex;flex-direction:column;gap:8px}
+.toast{background:var(--text);color:#fff;padding:12px 18px;border-radius:var(--radius);font-size:14px;box-shadow:var(--shadow-md);animation:slideIn 0.25s ease;max-width:340px}
+.toast.success{background:var(--teal-dark)}
+.toast.error{background:var(--danger)}
+@keyframes slideIn{from{opacity:0;transform:translateX(20px)}to{opacity:1;transform:translateX(0)}}
+.empty-state{text-align:center;padding:48px 24px;color:var(--text2)}
+.empty-state svg{width:48px;height:48px;color:var(--text3);margin-bottom:12px}
+.empty-state h3{font-size:15px;font-weight:500;margin-bottom:6px}
+.empty-state p{font-size:13px;color:var(--text3)}
+.search-wrap{position:relative}
+.search-wrap svg{position:absolute;left:10px;top:50%;transform:translateY(-50%);width:15px;height:15px;color:var(--text3);pointer-events:none}
+.search-input{padding:8px 12px 8px 34px;border:1px solid var(--border);border-radius:var(--radius);font-size:14px;font-family:'DM Sans',sans-serif;color:var(--text);background:var(--surface);outline:none;width:220px}
+.search-input:focus{border-color:var(--teal);box-shadow:0 0 0 3px rgba(15,123,108,0.1)}
+.loading{position:fixed;inset:0;background:rgba(255,255,255,0.8);display:flex;align-items:center;justify-content:center;z-index:999;flex-direction:column;gap:12px}
+.spinner{width:36px;height:36px;border:3px solid var(--border);border-top-color:var(--teal);border-radius:50%;animation:spin 0.7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loading p{font-size:14px;color:var(--text2)}
+.setup-screen{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;background:var(--bg)}
+.setup-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);box-shadow:var(--shadow-md);padding:36px;max-width:540px;width:100%}
+.setup-logo{font-size:24px;font-weight:600;color:var(--teal-dark);margin-bottom:20px}
+.setup-logo span{color:#1D9E8A}
+.setup-section{background:var(--surface2);border-radius:var(--radius);padding:16px 18px;margin-bottom:14px;border:1px solid var(--border)}
+.setup-section-title{font-size:12px;font-weight:600;color:var(--teal);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px}
+.setup-section p{font-size:13px;color:var(--text2);line-height:1.6;margin-bottom:8px}
+.setup-section a{color:var(--teal);font-weight:500}
+.setup-section code{background:#e2e8f0;padding:2px 6px;border-radius:4px;font-size:12px;font-family:monospace}
+.sql-box{width:100%;font-family:monospace;font-size:11px;height:130px;background:#1e1e1e;color:#d4d4d4;border:none;border-radius:6px;padding:10px;resize:none;margin-top:6px}
+::-webkit-scrollbar{width:6px}
+::-webkit-scrollbar-thumb{background:#ccc;border-radius:3px}
+</style>
+</head>
+<body>
+
+<!-- SETUP SCREEN -->
+<div id="setup-screen" class="setup-screen" style="display:none">
+  <div class="setup-card">
+    <div class="setup-logo">Shift<span>Hub</span> — First time setup</div>
+
+    <div class="setup-section">
+      <div class="setup-section-title">Step 1 — Create your Supabase database (free)</div>
+      <p>1. Go to <a href="https://supabase.com" target="_blank">supabase.com</a> and sign up free<br>
+      2. Click <strong>New project</strong>, give it any name, set a password<br>
+      3. Once loaded, click <strong>SQL Editor</strong> in the left sidebar<br>
+      4. Paste and run this SQL:</p>
+      <textarea class="sql-box" readonly>create table clinics (id uuid primary key default gen_random_uuid(), name text, address text, phone text, email text, manager text, color text, notes text, created_at timestamptz default now());
+create table employees (id uuid primary key default gen_random_uuid(), first_name text, last_name text, role text, clinic_id uuid, phone text, email text, color text, notes text, created_at timestamptz default now());
+create table shifts (id uuid primary key default gen_random_uuid(), clinic_id uuid, date text, start_time text, end_time text, notes text, status text default 'open', claimed_by uuid, token text, created_at timestamptz default now());
+create policy "open" on clinics for all using (true) with check (true);
+create policy "open" on employees for all using (true) with check (true);
+create policy "open" on shifts for all using (true) with check (true);
+alter table clinics enable row level security;
+alter table employees enable row level security;
+alter table shifts enable row level security;</textarea>
+      <p style="margin-top:10px">5. Go to <strong>Settings → API</strong> and copy your <strong>Project URL</strong> and <strong>anon public</strong> key</p>
+    </div>
+
+    <div class="setup-section">
+      <div class="setup-section-title">Step 2 — EmailJS for notifications (free, optional)</div>
+      <p>1. Go to <a href="https://emailjs.com" target="_blank">emailjs.com</a> → sign up → Add Email Service (connect Gmail)<br>
+      2. Create a template with these variables: <code>{{employee_name}}</code> <code>{{clinic_name}}</code> <code>{{shift_date}}</code> <code>{{shift_time}}</code> <code>{{accept_link}}</code><br>
+      3. Copy your Service ID, Template ID, and Public Key</p>
+      <p style="color:var(--text3);font-size:12px">You can skip EmailJS for now and add it later in Settings.</p>
+    </div>
+
+    <div class="setup-section">
+      <div class="setup-section-title">Step 3 — Enter your details</div>
+      <div class="field"><label>Supabase Project URL *</label><input type="url" id="s-url" placeholder="https://abcdefgh.supabase.co"></div>
+      <div class="field"><label>Supabase Anon Key *</label><input type="text" id="s-key" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."></div>
+      <div class="field"><label>EmailJS Public Key <span style="font-weight:400;color:var(--text3)">(optional)</span></label><input type="text" id="ej-pub" placeholder="Leave blank to skip"></div>
+      <div class="field"><label>EmailJS Service ID <span style="font-weight:400;color:var(--text3)">(optional)</span></label><input type="text" id="ej-svc" placeholder="service_xxxxxxx"></div>
+      <div class="field"><label>EmailJS Template ID <span style="font-weight:400;color:var(--text3)">(optional)</span></label><input type="text" id="ej-tpl" placeholder="template_xxxxxxx"></div>
+      <div class="field"><label>Your App URL <span style="font-weight:400;color:var(--text3)">(for email accept links — optional)</span></label><input type="text" id="s-appurl" placeholder="e.g. https://yourapp.netlify.app or leave blank"></div>
+      <div id="setup-error" style="color:var(--danger);font-size:13px;margin-bottom:12px;display:none"></div>
+      <button class="btn btn-primary" style="width:100%;justify-content:center;padding:13px;font-size:15px;margin-top:6px" onclick="doSaveConfig()">
+        Launch ShiftHub →
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- MAIN APP -->
+<div id="app" class="app" style="display:none">
+  <nav class="sidebar">
+    <div class="sidebar-logo">
+      <h1>Shift<span>Hub</span></h1>
+      <p>Clinic Group Portal</p>
+    </div>
+    <div class="nav">
+      <div class="nav-section">Scheduling</div>
+      <button class="nav-item active" onclick="navigate('dashboard')">
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.7"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+        Dashboard
+      </button>
+      <button class="nav-item" onclick="navigate('shifts')">
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.7"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+        Shift Board
+      </button>
+      <div class="nav-section">Management</div>
+      <button class="nav-item" onclick="navigate('employees')">
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.7"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+        Employees
+      </button>
+      <button class="nav-item" onclick="navigate('clinics')">
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.7"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9 22V12h6v10"/></svg>
+        Clinics
+      </button>
+      <div class="nav-section">System</div>
+      <button class="nav-item" onclick="navigate('settings')">
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        Settings
+      </button>
+    </div>
+    <div class="sidebar-bottom">
+      <div style="font-size:11px;color:rgba(255,255,255,0.3);padding:0 8px">ShiftHub v2.0</div>
+    </div>
+  </nav>
+  <main class="main">
+    <div id="page-dashboard"></div>
+    <div id="page-shifts" style="display:none"></div>
+    <div id="page-employees" style="display:none"></div>
+    <div id="page-clinics" style="display:none"></div>
+    <div id="page-settings" style="display:none"></div>
+  </main>
+</div>
+
+<div class="loading" id="loading" style="display:none"><div class="spinner"></div><p id="loading-msg">Loading…</p></div>
+
+<div class="modal-overlay" id="modal-overlay" onclick="if(event.target===this)closeModal()">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 id="modal-title"></h2>
+      <button class="modal-close" onclick="closeModal()"><svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+    </div>
+    <div class="modal-body" id="modal-body"></div>
+    <div class="modal-footer" id="modal-footer"></div>
+  </div>
+</div>
+
+<div class="confirm-overlay" id="confirm-overlay">
+  <div class="confirm-box">
+    <h3 id="confirm-title"></h3>
+    <p id="confirm-msg"></p>
+    <div class="confirm-actions">
+      <button class="btn btn-secondary btn-sm" onclick="closeConfirm()">Cancel</button>
+      <button class="btn btn-danger btn-sm" id="confirm-ok">Delete</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast-container" id="toast-container"></div>
+
+<script>
+// ── GLOBALS ──
+const COLORS = ['#0F7B6C','#185FA5','#BA7517','#993C1D','#7B3FA0','#2563EB','#0E7490','#065F46'];
+let DB = null;
+let CFG = {};
+let currentPage = 'dashboard';
+let shiftFilterClinic = 'all';
+let shiftFilterStatus = 'all';
+let empSearch = '';
+let _editEmpId = null;
+let _editClinicId = null;
+let _empColor = '#0F7B6C';
+let _clinicColor = '#0F7B6C';
+let _selectedStaffId = null;
+
+// ── CONFIG ──
+function getConfig() {
+  try { return JSON.parse(localStorage.getItem('shifthub_cfg') || 'null'); } catch { return null; }
+}
+function doSaveConfig() {
+  const url = document.getElementById('s-url').value.trim();
+  const key = document.getElementById('s-key').value.trim();
+  const ejPub = (document.getElementById('ej-pub').value || '').trim();
+  const ejSvc = (document.getElementById('ej-svc').value || '').trim();
+  const ejTpl = (document.getElementById('ej-tpl').value || '').trim();
+  const appUrl = (document.getElementById('s-appurl').value || '').trim().replace(/\/$/,'');
+  const errEl = document.getElementById('setup-error');
+  errEl.style.display = 'none';
+  if (!url || !key) { errEl.textContent = 'Supabase URL and Anon Key are required.'; errEl.style.display = 'block'; return; }
+  if (!url.startsWith('https://')) { errEl.textContent = 'Supabase URL must start with https://'; errEl.style.display = 'block'; return; }
+  localStorage.setItem('shifthub_cfg', JSON.stringify({ url, key, ejPub, ejSvc, ejTpl, appUrl }));
+  location.reload();
+}
+
+// ── INIT ──
+async function init() {
+  CFG = getConfig();
+  if (!CFG) { document.getElementById('setup-screen').style.display = 'flex'; return; }
+  try {
+    DB = window.supabase.createClient(CFG.url, CFG.key);
+    if (CFG.ejPub) emailjs.init(CFG.ejPub);
+  } catch(e) {
+    alert('Could not connect. Please check your Supabase credentials.\n\n' + e.message);
+    document.getElementById('setup-screen').style.display = 'flex';
+    return;
+  }
+  document.getElementById('app').style.display = 'flex';
+  navigate('dashboard');
+}
+
+// ── UI HELPERS ──
+function showLoading(msg) { document.getElementById('loading').style.display='flex'; document.getElementById('loading-msg').textContent=msg||'Loading…'; }
+function hideLoading() { document.getElementById('loading').style.display='none'; }
+function showToast(msg, type) {
+  const c = document.getElementById('toast-container');
+  const t = document.createElement('div');
+  t.className = 'toast ' + (type||'success');
+  t.textContent = msg;
+  c.appendChild(t);
+  setTimeout(() => t.remove(), 3200);
+}
+function openModal(title, body, footer) {
+  document.getElementById('modal-title').textContent = title;
+  document.getElementById('modal-body').innerHTML = body;
+  document.getElementById('modal-footer').innerHTML = footer;
+  document.getElementById('modal-overlay').classList.add('open');
+}
+function closeModal() { document.getElementById('modal-overlay').classList.remove('open'); }
+function showConfirm(title, msg, cb) {
+  document.getElementById('confirm-title').textContent = title;
+  document.getElementById('confirm-msg').textContent = msg;
+  document.getElementById('confirm-ok').onclick = () => { cb(); closeConfirm(); };
+  document.getElementById('confirm-overlay').classList.add('open');
+}
+function closeConfirm() { document.getElementById('confirm-overlay').classList.remove('open'); }
+
+function navigate(page) {
+  currentPage = page;
+  ['dashboard','shifts','employees','clinics','settings'].forEach(p => {
+    document.getElementById('page-'+p).style.display = p===page ? 'block' : 'none';
+  });
+  document.querySelectorAll('.nav-item').forEach(el => {
+    el.classList.toggle('active', (el.getAttribute('onclick')||'').includes("'"+page+"'"));
+  });
+  renderPage(page);
+}
+function renderPage(p) {
+  if (p==='dashboard') renderDashboard();
+  else if (p==='shifts') renderShifts();
+  else if (p==='employees') renderEmployees();
+  else if (p==='clinics') renderClinics();
+  else if (p==='settings') renderSettings();
+}
+
+// ── HELPERS ──
+function eName(e) { return e ? (e.first_name+' '+e.last_name) : 'Unknown'; }
+function eInitials(e) { return e ? (e.first_name[0]+(e.last_name?e.last_name[0]:'')).toUpperCase() : '?'; }
+function avStyle(color) { return 'background:'+color+'22;color:'+color+';'; }
+function fmtDate(d) { return new Date(d+'T12:00:00').toLocaleDateString('en-AU',{weekday:'short',day:'numeric',month:'short',year:'numeric'}); }
+function fmtTime(t) { const [h,m]=t.split(':'); return (+h%12||12)+(m!=='00'?':'+m:'')+( +h>=12?'pm':'am'); }
+function genToken() { return Math.random().toString(36).slice(2)+Date.now().toString(36); }
+
+// ── DASHBOARD ──
+async function renderDashboard() {
+  showLoading();
+  const el = document.getElementById('page-dashboard');
+  try {
+    const [c1,c2,c3] = await Promise.all([
+      DB.from('clinics').select('*'),
+      DB.from('employees').select('*'),
+      DB.from('shifts').select('*').order('date')
+    ]);
+    const clinics = c1.data||[], emps = c2.data||[], shifts = c3.data||[];
+    if (c1.error) throw c1.error;
+    const open = shifts.filter(s=>s.status==='open').length;
+    const filled = shifts.filter(s=>s.status==='filled').length;
+    const today = new Date().toISOString().split('T')[0];
+    const upcoming = shifts.filter(s=>s.date>=today).length;
+    const recent = [...shifts].sort((a,b)=>a.date.localeCompare(b.date)).slice(0,5);
+    const clinicMap = Object.fromEntries(clinics.map(c=>[c.id,c]));
+    const empMap = Object.fromEntries(emps.map(e=>[e.id,e]));
+
+    el.innerHTML = `
+      <div class="topbar">
+        <div><div class="page-title">Dashboard</div><div class="page-sub">Your clinic shift overview</div></div>
+        <button class="btn btn-primary" onclick="navigate('shifts')"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" width="16" height="16"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>Post a shift</button>
+      </div>
+      <div class="stats-row">
+        <div class="stat-card"><div class="stat-label">Open shifts</div><div class="stat-val">${open}</div><div class="stat-sub">Awaiting claim</div></div>
+        <div class="stat-card"><div class="stat-label">Filled shifts</div><div class="stat-val">${filled}</div><div class="stat-sub">Covered</div></div>
+        <div class="stat-card"><div class="stat-label">Upcoming</div><div class="stat-val">${upcoming}</div><div class="stat-sub">From today</div></div>
+        <div class="stat-card"><div class="stat-label">Clinics</div><div class="stat-val">${clinics.length}</div><div class="stat-sub">Locations</div></div>
+        <div class="stat-card"><div class="stat-label">Staff enrolled</div><div class="stat-val">${emps.length}</div><div class="stat-sub">All clinics</div></div>
+      </div>
+      <div class="card">
+        <div class="card-header"><span class="card-title">Recent shifts</span><button class="btn btn-secondary btn-sm" onclick="navigate('shifts')">View all</button></div>
+        <div style="padding:0">
+          ${recent.length===0?'<div class="empty-state"><p>No shifts yet.</p></div>':recent.map(s=>shiftHtml(s,clinicMap[s.clinic_id],empMap[s.claimed_by],false)).join('')}
+        </div>
+      </div>`;
+  } catch(e) {
+    el.innerHTML = `<div class="empty-state"><h3>Connection error</h3><p>${e.message}</p><button class="btn btn-secondary" style="margin-top:12px" onclick="navigate('settings')">Check settings</button></div>`;
+  }
+  hideLoading();
+}
+
+// ── SHIFTS ──
+async function renderShifts() {
+  showLoading();
+  const el = document.getElementById('page-shifts');
+  try {
+    const [c1,c2,c3] = await Promise.all([
+      DB.from('clinics').select('*').order('name'),
+      DB.from('shifts').select('*').order('date'),
+      DB.from('employees').select('*')
+    ]);
+    const clinics=c1.data||[], shifts=c2.data||[], emps=c3.data||[];
+    const clinicMap = Object.fromEntries(clinics.map(c=>[c.id,c]));
+    const empMap = Object.fromEntries(emps.map(e=>[e.id,e]));
+    let filtered = shifts;
+    if (shiftFilterClinic!=='all') filtered=filtered.filter(s=>s.clinic_id===shiftFilterClinic);
+    if (shiftFilterStatus!=='all') filtered=filtered.filter(s=>s.status===shiftFilterStatus);
+
+    el.innerHTML = `
+      <div class="topbar">
+        <div><div class="page-title">Shift Board</div><div class="page-sub">Post shifts — staff get an email to accept instantly</div></div>
+        <button class="btn btn-primary" onclick="showPostShift()"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" width="16" height="16"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>Post shift</button>
+      </div>
+      <div class="filter-row">
+        <span class="filter-label">Clinic:</span>
+        <span class="chip ${shiftFilterClinic==='all'?'active':''}" onclick="shiftFilterClinic='all';renderShifts()">All</span>
+        ${clinics.map(c=>`<span class="chip ${shiftFilterClinic===c.id?'active':''}" onclick="shiftFilterClinic='${c.id}';renderShifts()">${c.name}</span>`).join('')}
+      </div>
+      <div class="filter-row" style="margin-top:-6px">
+        <span class="filter-label">Status:</span>
+        <span class="chip ${shiftFilterStatus==='all'?'active':''}" onclick="shiftFilterStatus='all';renderShifts()">All</span>
+        <span class="chip ${shiftFilterStatus==='open'?'active':''}" onclick="shiftFilterStatus='open';renderShifts()">Open</span>
+        <span class="chip ${shiftFilterStatus==='filled'?'active':''}" onclick="shiftFilterStatus='filled';renderShifts()">Filled</span>
+      </div>
+      <div class="shift-grid">
+        ${filtered.length===0?`<div class="empty-state card"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg><h3>No shifts</h3><p>Post a shift above to get started.</p></div>`
+        :filtered.map(s=>shiftHtml(s,clinicMap[s.clinic_id],empMap[s.claimed_by],true)).join('')}
+      </div>`;
+  } catch(e) {
+    el.innerHTML = `<div class="empty-state"><h3>Error</h3><p>${e.message}</p></div>`;
+  }
+  hideLoading();
+}
+
+function shiftHtml(s, clinic, claimer, actions) {
+  const c = clinic||{};
+  const col = c.color||'#888';
+  const filled = s.status==='filled';
+  return `<div class="shift-row${filled?' filled':''}" style="border-left:3px solid ${col}">
+    <div class="clinic-pill" style="background:${col}18;color:${col}"><div class="clinic-dot" style="background:${col}"></div>${c.name||'Unknown'}</div>
+    <div class="shift-details">
+      <div class="shift-name">${fmtDate(s.date)}</div>
+      <div class="shift-meta"><span>⏰ ${fmtTime(s.start_time)} – ${fmtTime(s.end_time)}</span>${s.notes?`<span>${s.notes}</span>`:''}</div>
+    </div>
+    <span class="badge ${filled?'badge-filled':'badge-open'}">${filled?'Filled':'Open'}</span>
+    ${filled&&claimer?`<div class="claimant-tag"><div class="avatar" style="width:26px;height:26px;font-size:11px;${avStyle(claimer.color||col)}">${eInitials(claimer)}</div>${eName(claimer)}</div>`:''}
+    ${actions&&!filled?`<button class="btn btn-primary btn-sm" onclick="showClaimModal('${s.id}')">Claim</button>`:''}
+    ${actions?`<button class="btn btn-danger btn-sm" onclick="doDeleteShift('${s.id}')"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" width="14" height="14"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg></button>`:''}
+  </div>`;
+}
+
+async function showPostShift() {
+  const {data:clinics} = await DB.from('clinics').select('*').order('name');
+  if (!clinics||!clinics.length) { showToast('Add a clinic first','error'); return; }
+  const {data:emps} = await DB.from('employees').select('*').order('first_name');
+  const today = new Date().toISOString().split('T')[0];
+  openModal('Post a shift', `
+    <div class="field"><label>Clinic *</label><select id="f-clinic">${clinics.map(c=>`<option value="${c.id}">${c.name}</option>`).join('')}</select></div>
+    <div class="field"><label>Date *</label><input type="date" id="f-date" value="${today}" min="${today}"></div>
+    <div class="field-row">
+      <div class="field"><label>Start time *</label><input type="time" id="f-start" value="08:00"></div>
+      <div class="field"><label>End time *</label><input type="time" id="f-end" value="17:00"></div>
+    </div>
+    <div class="field"><label>Notes</label><textarea id="f-notes" placeholder="e.g. Annual leave cover…"></textarea></div>
+    <div class="field">
+      <label>Notify staff by email</label>
+      <p style="font-size:12px;color:var(--text2);margin-bottom:8px">Tick who to notify — they get a one-click accept link.</p>
+      <div style="display:flex;flex-direction:column;gap:6px;max-height:200px;overflow-y:auto">
+        ${!emps||!emps.length?'<p style="font-size:13px;color:var(--text3)">No employees with email addresses yet.</p>':
+        emps.filter(e=>e.email).map(e=>`
+          <label style="display:flex;align-items:center;gap:10px;padding:8px 10px;border:1px solid var(--border);border-radius:8px;cursor:pointer;font-weight:400;font-size:13px">
+            <input type="checkbox" name="notify-emp" value="${e.id}" data-name="${e.first_name}" data-email="${e.email}" style="width:auto;accent-color:var(--teal)">
+            <div class="avatar" style="width:28px;height:28px;font-size:11px;${avStyle(e.color||'#0F7B6C')}">${eInitials(e)}</div>
+            ${eName(e)} <span style="color:var(--text3)">&lt;${e.email}&gt;</span>
+          </label>`).join('')}
+      </div>
+    </div>`,
+    `<button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+     <button class="btn btn-primary" onclick="doPostShift()">Post & notify</button>`);
+}
+
+async function doPostShift() {
+  const clinicId = document.getElementById('f-clinic').value;
+  const date = document.getElementById('f-date').value;
+  const start = document.getElementById('f-start').value;
+  const end = document.getElementById('f-end').value;
+  const notes = document.getElementById('f-notes').value.trim();
+  if (!date||!start||!end) { showToast('Fill in date and times','error'); return; }
+  if (start>=end) { showToast('End must be after start','error'); return; }
+  const checked = [...document.querySelectorAll('input[name="notify-emp"]:checked')];
+  const token = genToken();
+  closeModal(); showLoading('Posting shift…');
+  try {
+    const {data:shift, error} = await DB.from('shifts').insert({clinic_id:clinicId,date,start_time:start,end_time:end,notes,status:'open',token}).select().single();
+    if (error) throw error;
+    const {data:clinic} = await DB.from('clinics').select('name').eq('id',clinicId).single();
+    if (checked.length && CFG.ejPub && CFG.ejSvc && CFG.ejTpl) {
+      let sent=0;
+      for (const cb of checked) {
+        const acceptLink = (CFG.appUrl||window.location.href.split('?')[0])+'?accept='+token+'&emp='+cb.value;
+        try {
+          await emailjs.send(CFG.ejSvc, CFG.ejTpl, {
+            employee_name: cb.dataset.name,
+            to_email: cb.dataset.email,
+            clinic_name: clinic?clinic.name:'your clinic',
+            shift_date: fmtDate(date),
+            shift_time: fmtTime(start)+' – '+fmtTime(end),
+            shift_notes: notes||'No notes',
+            accept_link: acceptLink
+          });
+          sent++;
+        } catch(err) { console.warn('Email failed',err); }
+      }
+      showToast('Shift posted! '+sent+' email'+(sent!==1?'s':'')+' sent.');
+    } else {
+      showToast('Shift posted!'+(checked.length&&!CFG.ejPub?' (EmailJS not configured — no emails sent)':''));
+    }
+    renderPage(currentPage);
+  } catch(e) { showToast('Error: '+e.message,'error'); }
+  hideLoading();
+}
+
+async function showClaimModal(shiftId) {
+  const [{data:shift},{data:emps}] = await Promise.all([
+    DB.from('shifts').select('*').eq('id',shiftId).single(),
+    DB.from('employees').select('*').order('first_name')
+  ]);
+  const {data:clinic} = await DB.from('clinics').select('name').eq('id',shift.clinic_id).single();
+  _selectedStaffId = null;
+  openModal('Claim shift', `
+    <p style="font-size:13px;color:var(--text2);margin-bottom:16px"><strong>${clinic?clinic.name:''}</strong> — ${fmtDate(shift.date)}, ${fmtTime(shift.start_time)} – ${fmtTime(shift.end_time)}${shift.notes?'<br><em>'+shift.notes+'</em>':''}</p>
+    <div class="field"><label>Who is claiming this shift?</label></div>
+    <div class="staff-select-list">
+      ${!emps||!emps.length?'<p style="font-size:13px;color:var(--text3)">No employees yet.</p>':
+      emps.map(e=>`<div class="staff-option" onclick="selectStaff(this,'${e.id}')">
+        <div class="avatar" style="width:34px;height:34px;font-size:12px;${avStyle(e.color||'#0F7B6C')}">${eInitials(e)}</div>
+        <div><div style="font-size:13px;font-weight:500">${eName(e)}</div><div style="font-size:11px;color:var(--text2)">${e.role||'Receptionist'}</div></div>
+      </div>`).join('')}
+    </div>`,
+    `<button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+     <button class="btn btn-primary" onclick="doClaimShift('${shiftId}')">Confirm claim</button>`);
+}
+
+function selectStaff(el, id) {
+  document.querySelectorAll('.staff-option').forEach(e=>e.classList.remove('selected'));
+  el.classList.add('selected');
+  _selectedStaffId = id;
+}
+
+async function doClaimShift(shiftId) {
+  if (!_selectedStaffId) { showToast('Select a staff member','error'); return; }
+  closeModal(); showLoading('Claiming…');
+  try {
+    const {error} = await DB.from('shifts').update({status:'filled',claimed_by:_selectedStaffId}).eq('id',shiftId).eq('status','open');
+    if (error) throw error;
+    showToast('Shift claimed!');
+    renderPage(currentPage);
+  } catch(e) { showToast('Error: '+e.message,'error'); }
+  hideLoading();
+}
+
+async function doDeleteShift(id) {
+  showConfirm('Delete shift?','This shift will be permanently removed.', async()=>{
+    showLoading('Deleting…');
+    await DB.from('shifts').delete().eq('id',id);
+    showToast('Shift removed');
+    renderPage(currentPage);
+    hideLoading();
+  });
+}
+
+// ── EMPLOYEES ──
+async function renderEmployees() {
+  showLoading();
+  const el = document.getElementById('page-employees');
+  try {
+    const [{data:emps},{data:clinics}] = await Promise.all([
+      DB.from('employees').select('*').order('first_name'),
+      DB.from('clinics').select('*').order('name')
+    ]);
+    const clinicMap = Object.fromEntries((clinics||[]).map(c=>[c.id,c]));
+    let list = emps||[];
+    if (empSearch) list=list.filter(e=>eName(e).toLowerCase().includes(empSearch.toLowerCase())||(e.email||'').toLowerCase().includes(empSearch.toLowerCase()));
+    el.innerHTML = `
+      <div class="topbar">
+        <div><div class="page-title">Employees</div><div class="page-sub">${(emps||[]).length} staff enrolled</div></div>
+        <div style="display:flex;gap:10px;align-items:center">
+          <div class="search-wrap">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input class="search-input" placeholder="Search…" value="${empSearch}" oninput="empSearch=this.value;renderEmployees()">
+          </div>
+          <button class="btn btn-primary" onclick="showAddEmp()"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" width="16" height="16"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>Add employee</button>
+        </div>
+      </div>
+      ${list.length===0?`<div class="empty-state card"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg><h3>${empSearch?'No results':'No employees yet'}</h3><p>${empSearch?'Try a different search.':'Add your receptionists to get started.'}</p></div>`
+      :`<div class="people-grid">${list.map(e=>personHtml(e,clinicMap[e.clinic_id])).join('')}</div>`}`;
+  } catch(e) { el.innerHTML=`<div class="empty-state"><h3>Error</h3><p>${e.message}</p></div>`; }
+  hideLoading();
+}
+
+function personHtml(e, clinic) {
+  return `<div class="person-card">
+    <div class="person-top">
+      <div class="avatar" style="${avStyle(e.color||'#0F7B6C')}">${eInitials(e)}</div>
+      <div><div class="person-name">${eName(e)}</div><div class="person-role">${e.role||'Receptionist'}</div><div class="person-clinic-tag">${clinic?clinic.name:'—'}</div></div>
+    </div>
+    ${e.phone?`<div style="font-size:12px;color:var(--text2)">📞 ${e.phone}</div>`:''}
+    ${e.email?`<div style="font-size:12px;color:var(--text2)">✉ ${e.email}</div>`:''}
+    ${e.notes?`<div style="font-size:12px;color:var(--text3);font-style:italic">${e.notes}</div>`:''}
+    <div class="person-actions">
+      <button class="btn btn-secondary btn-sm" onclick="showEditEmp('${e.id}')">Edit</button>
+      <button class="btn btn-danger btn-sm" onclick="doDeleteEmp('${e.id}','${eName(e)}')">Remove</button>
+    </div>
+  </div>`;
+}
+
+async function showAddEmp() {
+  const {data:clinics} = await DB.from('clinics').select('*').order('name');
+  if (!clinics||!clinics.length) { showToast('Add a clinic first','error'); return; }
+  _editEmpId=null; _empColor='#0F7B6C';
+  openModal('Add employee', empFormHtml(null,clinics), `<button class="btn btn-secondary" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="doSaveEmp()">Add employee</button>`);
+}
+
+async function showEditEmp(id) {
+  const [{data:emp},{data:clinics}] = await Promise.all([DB.from('employees').select('*').eq('id',id).single(), DB.from('clinics').select('*').order('name')]);
+  _editEmpId=id; _empColor=emp.color||'#0F7B6C';
+  openModal('Edit employee', empFormHtml(emp,clinics), `<button class="btn btn-secondary" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="doSaveEmp()">Save changes</button>`);
+}
+
+function empFormHtml(emp, clinics) {
+  const e=emp||{};
+  return `
+    <div class="field-row">
+      <div class="field"><label>First name *</label><input type="text" id="ef-first" value="${e.first_name||''}" placeholder="Jane"></div>
+      <div class="field"><label>Last name *</label><input type="text" id="ef-last" value="${e.last_name||''}" placeholder="Smith"></div>
+    </div>
+    <div class="field"><label>Role</label><select id="ef-role">${['Receptionist','Senior Receptionist','Practice Manager','Admin'].map(r=>`<option ${e.role===r?'selected':''}>${r}</option>`).join('')}</select></div>
+    <div class="field"><label>Home clinic *</label><select id="ef-clinic">${clinics.map(c=>`<option value="${c.id}" ${e.clinic_id===c.id?'selected':''}>${c.name}</option>`).join('')}</select></div>
+    <div class="field-row">
+      <div class="field"><label>Phone</label><input type="tel" id="ef-phone" value="${e.phone||''}" placeholder="0412 000 000"></div>
+      <div class="field"><label>Email</label><input type="email" id="ef-email" value="${e.email||''}" placeholder="jane@example.com"></div>
+    </div>
+    <div class="field"><label>Profile colour</label><div class="color-picker" id="emp-colors">${COLORS.map(col=>`<div class="color-swatch ${(e.color||'#0F7B6C')===col?'selected':''}" style="background:${col}" onclick="pickColor('emp',this,'${col}')"></div>`).join('')}</div></div>
+    <div class="field"><label>Notes</label><textarea id="ef-notes" placeholder="Any notes…">${e.notes||''}</textarea></div>`;
+}
+
+function pickColor(type, el, col) {
+  if (type==='emp') _empColor=col;
+  else _clinicColor=col;
+  el.closest('.color-picker').querySelectorAll('.color-swatch').forEach(s=>s.classList.remove('selected'));
+  el.classList.add('selected');
+}
+
+async function doSaveEmp() {
+  const first=document.getElementById('ef-first').value.trim();
+  const last=document.getElementById('ef-last').value.trim();
+  const role=document.getElementById('ef-role').value;
+  const clinicId=document.getElementById('ef-clinic').value;
+  const phone=document.getElementById('ef-phone').value.trim();
+  const email=document.getElementById('ef-email').value.trim();
+  const notes=document.getElementById('ef-notes').value.trim();
+  if (!first||!last) { showToast('First and last name required','error'); return; }
+  closeModal(); showLoading('Saving…');
+  try {
+    const data={first_name:first,last_name:last,role,clinic_id:clinicId,phone,email,notes,color:_empColor};
+    const {error} = _editEmpId ? await DB.from('employees').update(data).eq('id',_editEmpId) : await DB.from('employees').insert(data);
+    if (error) throw error;
+    showToast(_editEmpId?'Employee updated':'Employee added');
+    renderPage(currentPage);
+  } catch(e) { showToast('Error: '+e.message,'error'); }
+  hideLoading();
+}
+
+async function doDeleteEmp(id, name) {
+  showConfirm('Remove employee?',name+' will be removed from the system.', async()=>{
+    showLoading('Removing…');
+    await DB.from('employees').delete().eq('id',id);
+    showToast('Employee removed');
+    renderPage(currentPage);
+    hideLoading();
+  });
+}
+
+// ── CLINICS ──
+async function renderClinics() {
+  showLoading();
+  const el = document.getElementById('page-clinics');
+  try {
+    const [{data:clinics},{data:emps},{data:shifts}] = await Promise.all([
+      DB.from('clinics').select('*').order('name'),
+      DB.from('employees').select('clinic_id'),
+      DB.from('shifts').select('clinic_id,status')
+    ]);
+    el.innerHTML = `
+      <div class="topbar">
+        <div><div class="page-title">Clinics</div><div class="page-sub">${(clinics||[]).length} clinic${(clinics||[]).length!==1?'s':''} in your group</div></div>
+        <button class="btn btn-primary" onclick="showAddClinic()"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" width="16" height="16"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>Add clinic</button>
+      </div>
+      ${!clinics||!clinics.length?`<div class="empty-state card"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg><h3>No clinics yet</h3><p>Add your first clinic to get started.</p></div>`
+      :`<div class="clinic-list">${clinics.map(c=>{
+        const sc=(emps||[]).filter(e=>e.clinic_id===c.id).length;
+        const oc=(shifts||[]).filter(s=>s.clinic_id===c.id&&s.status==='open').length;
+        return clinicHtml(c,sc,oc);
+      }).join('')}</div>`}`;
+  } catch(e) { el.innerHTML=`<div class="empty-state"><h3>Error</h3><p>${e.message}</p></div>`; }
+  hideLoading();
+}
+
+function clinicHtml(c, staffCount, openCount) {
+  return `<div class="clinic-card">
+    <div class="clinic-color-bar" style="background:${c.color||'#888'}"></div>
+    <div class="clinic-info">
+      <div class="clinic-name">${c.name}</div>
+      ${c.address?`<div class="clinic-detail">📍 ${c.address}</div>`:''}
+      ${c.phone?`<div class="clinic-detail">📞 ${c.phone}</div>`:''}
+      ${c.email?`<div class="clinic-detail">✉ ${c.email}</div>`:''}
+      ${c.manager?`<div class="clinic-detail">👤 ${c.manager}</div>`:''}
+      ${c.notes?`<div class="clinic-detail" style="font-style:italic">${c.notes}</div>`:''}
+    </div>
+    <div class="clinic-stats">
+      <div><div class="clinic-stat-val">${staffCount}</div><div class="clinic-stat-label">Staff</div></div>
+      <div><div class="clinic-stat-val">${openCount}</div><div class="clinic-stat-label">Open shifts</div></div>
+    </div>
+    <div class="clinic-actions">
+      <button class="btn btn-secondary btn-sm" onclick="showEditClinic('${c.id}')">Edit</button>
+      <button class="btn btn-danger btn-sm" onclick="doDeleteClinic('${c.id}','${c.name}')">Remove</button>
+    </div>
+  </div>`;
+}
+
+function clinicFormHtml(c) {
+  const e=c||{};
+  return `
+    <div class="field"><label>Clinic name *</label><input type="text" id="cf-name" value="${e.name||''}" placeholder="e.g. Clinic A – CBD"></div>
+    <div class="field"><label>Address</label><input type="text" id="cf-address" value="${e.address||''}" placeholder="123 Main St, Suburb SA 5000"></div>
+    <div class="field-row">
+      <div class="field"><label>Phone</label><input type="tel" id="cf-phone" value="${e.phone||''}" placeholder="08 8000 0000"></div>
+      <div class="field"><label>Email</label><input type="email" id="cf-email" value="${e.email||''}" placeholder="clinic@example.com"></div>
+    </div>
+    <div class="field"><label>Practice manager</label><input type="text" id="cf-manager" value="${e.manager||''}" placeholder="Dr. Name Surname"></div>
+    <div class="field"><label>Clinic colour</label><div class="color-picker">${COLORS.map(col=>`<div class="color-swatch ${(e.color||'#0F7B6C')===col?'selected':''}" style="background:${col}" onclick="pickColor('clinic',this,'${col}')"></div>`).join('')}</div></div>
+    <div class="field"><label>Notes</label><textarea id="cf-notes" placeholder="Any additional info…">${e.notes||''}</textarea></div>`;
+}
+
+async function showAddClinic() {
+  _editClinicId=null; _clinicColor='#0F7B6C';
+  openModal('Add clinic', clinicFormHtml(null), `<button class="btn btn-secondary" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="doSaveClinic()">Add clinic</button>`);
+}
+
+async function showEditClinic(id) {
+  const {data:c} = await DB.from('clinics').select('*').eq('id',id).single();
+  _editClinicId=id; _clinicColor=c.color||'#0F7B6C';
+  openModal('Edit clinic', clinicFormHtml(c), `<button class="btn btn-secondary" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="doSaveClinic()">Save changes</button>`);
+}
+
+async function doSaveClinic() {
+  const name=document.getElementById('cf-name').value.trim();
+  const address=document.getElementById('cf-address').value.trim();
+  const phone=document.getElementById('cf-phone').value.trim();
+  const email=document.getElementById('cf-email').value.trim();
+  const manager=document.getElementById('cf-manager').value.trim();
+  const notes=document.getElementById('cf-notes').value.trim();
+  if (!name) { showToast('Clinic name is required','error'); return; }
+  closeModal(); showLoading('Saving…');
+  try {
+    const data={name,address,phone,email,manager,notes,color:_clinicColor};
+    const {error} = _editClinicId ? await DB.from('clinics').update(data).eq('id',_editClinicId) : await DB.from('clinics').insert(data);
+    if (error) throw error;
+    showToast(_editClinicId?'Clinic updated':'Clinic added');
+    renderPage(currentPage);
+  } catch(e) { showToast('Error: '+e.message,'error'); }
+  hideLoading();
+}
+
+async function doDeleteClinic(id, name) {
+  showConfirm('Remove clinic?','"'+name+'" will be removed.',async()=>{
+    showLoading('Removing…');
+    await DB.from('clinics').delete().eq('id',id);
+    showToast('Clinic removed');
+    renderPage(currentPage);
+    hideLoading();
+  });
+}
+
+// ── SETTINGS ──
+function renderSettings() {
+  const el = document.getElementById('page-settings');
+  const c = CFG||{};
+  el.innerHTML = `
+    <div class="topbar"><div><div class="page-title">Settings</div><div class="page-sub">Update your service credentials</div></div></div>
+    <div class="card" style="max-width:560px">
+      <div class="card-header"><span class="card-title">Supabase (database)</span></div>
+      <div style="padding:22px 24px">
+        <div class="field"><label>Project URL</label><input type="url" id="s-url" value="${c.url||''}"></div>
+        <div class="field"><label>Anon Key</label><input type="text" id="s-key" value="${c.key||''}"></div>
+      </div>
+      <div class="card-header" style="border-top:1px solid var(--border)"><span class="card-title">EmailJS (email notifications)</span></div>
+      <div style="padding:22px 24px">
+        <div class="field"><label>Public Key</label><input type="text" id="ej-pub" value="${c.ejPub||''}" placeholder="Leave blank to disable email"></div>
+        <div class="field"><label>Service ID</label><input type="text" id="ej-svc" value="${c.ejSvc||''}"></div>
+        <div class="field"><label>Template ID</label><input type="text" id="ej-tpl" value="${c.ejTpl||''}"></div>
+        <div class="field"><label>App URL <span style="font-weight:400;color:var(--text3)">(used in email accept links)</span></label><input type="text" id="s-appurl" value="${c.appUrl||''}" placeholder="https://yourapp.netlify.app"></div>
+        <div style="display:flex;gap:10px">
+          <button class="btn btn-primary" onclick="doUpdateSettings()">Save & reload</button>
+          <button class="btn btn-danger" onclick="doClearSettings()">Reset all settings</button>
+        </div>
+      </div>
+    </div>`;
+}
+
+function doUpdateSettings() {
+  const url=document.getElementById('s-url').value.trim();
+  const key=document.getElementById('s-key').value.trim();
+  if (!url||!key) { showToast('Supabase URL and key are required','error'); return; }
+  localStorage.setItem('shifthub_cfg', JSON.stringify({
+    url, key,
+    ejPub: document.getElementById('ej-pub').value.trim(),
+    ejSvc: document.getElementById('ej-svc').value.trim(),
+    ejTpl: document.getElementById('ej-tpl').value.trim(),
+    appUrl: document.getElementById('s-appurl').value.trim()
+  }));
+  location.reload();
+}
+
+function doClearSettings() {
+  if (confirm('Clear all settings and restart setup?')) { localStorage.removeItem('shifthub_cfg'); location.reload(); }
+}
+
+init();
+</script>
+</body>
+</html>
