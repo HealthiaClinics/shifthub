@@ -289,7 +289,14 @@ let _selectedStaffId = null;
 
 // ── CONFIG ──
 function getConfig() {
-  try { return JSON.parse(localStorage.getItem('shifthub_cfg') || 'null'); } catch { return null; }
+  return {
+    url: 'https://dyvpvnazzbkzalihdccs.supabase.co',
+    key: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR5dnB2bmF6emJremFsaWhkY2NzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk2ODM0ODAsImV4cCI6MjA5NTI1OTQ4MH0.v-7pJ0Ue_wLDbtUNycapFX2Amfco6mJluWGEhrzIQ80',
+    ejPub: 'Zd96fhDsV9BDpTTG2',
+    ejSvc: 'service_rbppgqn',
+    ejTpl: 'template_vzrzdts',
+    appUrl: 'https://healthiaclinics.github.io/shifthub'
+  };
 }
 function doSaveConfig() {
   const url = document.getElementById('s-url').value.trim();
